@@ -1,11 +1,13 @@
 from flask import Blueprint, jsonify
 from flask_bcrypt import Bcrypt
 from flask_restful import Resource, Api, reqparse, fields, marshal
+from flask_jwt_extended import (JWTManager, jwt_required, create_access_token, get_jwt_identity)
 
 import models
 
 user_fields = {
-    'username': fields.String
+    'username': fields.String,
+    'token': fields.String
 }
 
 bcrypt = Bcrypt()
@@ -42,6 +44,8 @@ class UserRegister(Resource):
                 username = username,
                 password = password
             )
+            token = create_access_token(identity=user.username)
+            user.token = token
             return marshal(user, user_fields)
         else:
             # Return mengguanakan error code
@@ -80,9 +84,9 @@ class UserLogin(Resource):
             }, 401
         else:
             if bcrypt.check_password_hash( user.password, password) :
-                return {
-                    'message': 'success'
-                }
+                token = create_access_token(identity=user.username)
+                user.token = token
+                return marshal(user, user_fields)
             else:
                 return {
                     'message': 'Password salah'
