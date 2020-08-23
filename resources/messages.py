@@ -1,5 +1,6 @@
 from flask import jsonify, Blueprint, abort
 from flask_restful import Resource, Api, reqparse, fields, marshal, marshal_with
+from flask_jwt_extended import (JWTManager, jwt_required, create_access_token, get_jwt_identity)
 
 import models
 
@@ -19,21 +20,21 @@ class MessageList(Resource):
             help='Kontent wajib ada',
             location=['form', 'json']
         )
-        self.reqparse.add_argument(
-            'published_at',
-            required=True,
-            help='waktu (published_at) wajib ada',
-            location=['form', 'json']
-        )
         super().__init__()
 
     def get(self):
         messages = [marshal(message, message_fields) for message in models.Message.select()]
         return jsonify(messages)
 
+    @jwt_required
     def post(self):
         args = self.reqparse.parse_args()
-        message = models.Message.create(**args)
+        current_user = get_jwt_identity()
+        user = models.User.select().where( models.User.username == current_user ).get()
+        message = models.Message.create(
+            user_id=user.id,
+            content=args.get('content')
+        )
         return marshal(message, message_fields)
 
 
