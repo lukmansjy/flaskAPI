@@ -10,8 +10,7 @@ message_fields = {
     'published_at': fields.String
 }
 
-
-class MessageList(Resource):
+class UserBase(Resource):
     def __init__(self):
         self.reqparse = reqparse.RequestParser()
         self.reqparse.add_argument(
@@ -22,6 +21,8 @@ class MessageList(Resource):
         )
         super().__init__()
 
+
+class MessageList(UserBase):
     def get(self):
         messages = [marshal(message, message_fields) for message in models.Message.select()]
         return jsonify(messages)
@@ -38,7 +39,7 @@ class MessageList(Resource):
         return marshal(message, message_fields)
 
 
-class Message(Resource):
+class Message(UserBase):
     def get(self, id):
         try:
             message = models.Message.get_by_id(id)
@@ -46,6 +47,30 @@ class Message(Resource):
             abort(404)
         else:
             return marshal(message, message_fields)
+
+    @jwt_required
+    def put(self, id):
+        args = self.reqparse.parse_args()
+        try:
+            message = models.Message.get_by_id(id)
+        except models.Message.DoesNotExist:
+            abort(404)
+        else:
+            current_user = get_jwt_identity()
+            user = models.User.select().where( models.User.username == current_user ).get()
+            print(current_user)
+            print(user.id)
+            print(message.user_id)
+            if user == message.user_id:
+                models.Message.update(content=args.get('content')).where(models.Message.id == id).execute()
+                return {
+                    'message': 'update success'
+                }
+            else:
+                return {
+                    'message': 'Kamu tidak dapat edit message ini'
+                }, 403
+
 
 messages_api = Blueprint('resources.messages', __name__)
 api = Api(messages_api)
