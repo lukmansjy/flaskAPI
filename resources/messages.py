@@ -58,9 +58,6 @@ class Message(UserBase):
         else:
             current_user = get_jwt_identity()
             user = models.User.select().where( models.User.username == current_user ).get()
-            print(current_user)
-            print(user.id)
-            print(message.user_id)
             if user == message.user_id:
                 models.Message.update(content=args.get('content')).where(models.Message.id == id).execute()
                 return {
@@ -69,6 +66,25 @@ class Message(UserBase):
             else:
                 return {
                     'message': 'Kamu tidak dapat edit message ini'
+                }, 403
+
+    @jwt_required
+    def delete(self, id):
+        try:
+            message = models.Message.get_by_id(id)
+        except models.Message.DoesNotExist:
+            abort(404)
+        else:
+            current_user = get_jwt_identity()
+            user = models.User.select().where( models.User.username == current_user ).get()
+            if user == message.user_id:
+                models.Message.delete().where(models.Message.id == id).execute()
+                return {
+                    'message': 'delete success'
+                }
+            else:
+                return {
+                    'message': 'Kamu tidak dapat menghapus message ini'
                 }, 403
 
 
